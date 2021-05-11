@@ -1,0 +1,146 @@
+name: CI / CD
+on: push
+jobs:
+    lint:
+        name: Lint
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Setup yapf
+              run: ./tools/setup_yapf.sh
+
+            - name: Format
+              run: ./tools/format.sh --all
+            # TODO: Add super linter.
+
+    build-server:
+        name: Build server
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Build server
+              run: ./server/interop-server.sh build
+
+            - name: Save image
+              run: docker save -o interop-server.tar auvsisuas/interop-server:latest
+
+            - name: Upload image
+              uses: actions/upload-artifact@v2
+              with:
+                name: interop-server-image
+                path: interop-server.tar
+                retention-days: 1
+
+    test-server:
+        name: Test server
+        needs: build-server
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Download image
+              uses: actions/download-artifact@v2
+              with:
+                name: interop-server-image
+
+            - name: Load image
+              run: docker load -i interop-server.tar
+
+            - name: Test server
+              run: ./server/interop-server.sh test
+
+    build-client:
+        name: Build client
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Build client
+              run: ./client/interop-client.sh build
+
+            - name: Save image
+              run: docker save -o interop-client.tar auvsisuas/interop-client:latest
+
+            - name: Upload image
+              uses: actions/upload-artifact@v2
+              with:
+                name: interop-client-image
+                path: interop-client.tar
+                retention-days: 1
+
+    test-client:
+        name: Test client
+        needs: [build-client, build-server]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Download server image
+              uses: actions/download-artifact@v2
+              with:
+                name: interop-server-image
+
+            - name: Download client image
+              uses: actions/download-artifact@v2
+              with:
+                name: interop-client-image
+
+            - name: Load server image
+              run: docker load -i interop-server.tar
+
+            - name: Load client image
+              run: docker load -i interop-client.tar
+
+            - name: Create test database
+              run: ./server/interop-server.sh create_db
+
+            - name: Load test data
+              run: ./server/interop-server.sh load_test_data
+
+            - name: Start server
+              run: ./server/interop-server.sh up_d
+
+            - name: Test client
+              run: ./client/interop-client.sh test
+
+            - name: Stop server
+              run: ./server/interop-server.sh down
+
+    deploy:
+        name: Deploy
+        if: ${{ github.ref == 'refs/heads/master' }}
+        needs: [lint, build-server, test-server, build-client, test-client]
+        runs-on: ubuntu-latest
+        environment: deploy
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Download server image
+              uses: actions/download-artifact@v2
+              with:
+                name: interop-server-image
+
+            - name: Download client image
+              uses: actions/download-artifact@v2
+              with:
+                name: interop-client-image
+
+            - name: Load server image
+              run: docker load -i interop-server.tar
+
+            - name: Load client image
+              run: docker load -i interop-client.tar
+
+            - name: Deploy
+              env:
+                  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+                  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+              run: ./tools/deploy.sh

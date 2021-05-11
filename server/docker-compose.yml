@@ -1,0 +1,29 @@
+version: '3.2'
+
+services:
+  interop-db:
+    image: postgres:13.2-alpine
+    environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./volumes/var/lib/postgresql/data:/var/lib/postgresql/data
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready", "-q", "-h", "interop-db"]
+        interval: 5s
+        timeout: 60s
+  interop-server:
+    build:
+      context: ../
+      dockerfile: server/Dockerfile
+      cache_from:
+        - auvsisuas/interop-server:latest
+    image: auvsisuas/interop-server
+    volumes:
+      - ./volumes/mount:/mount
+      - ./volumes/logs/uwsgi:/var/log/uwsgi
+      - ./volumes/var/www/media:/var/www/media
+    ports:
+      - "8000:80"
+    depends_on:
+      - interop-db
