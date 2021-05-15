@@ -8,6 +8,7 @@ RUN apt-get -qq update && apt-get -qq install -y \
         libxml2-dev \
         libxslt-dev \
         protobuf-compiler \
+        python2 \
         python3 \
         python3-dev \
         python3-venv \
@@ -16,6 +17,15 @@ RUN apt-get -qq update && apt-get -qq install -y \
         python3-pyproj \
         python3-lxml \
         sudo
+
+RUN bash -c "cd /interop/client && \
+            add-apt-repository universe && \
+            curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py && \
+            python2 get-pip.py && \
+            python2 -m pip install virtualenv && \
+            source env/bin/activate && \
+            pip install -r requirements.txt && \
+            deactivate"
 
 COPY client/requirements.txt .
 

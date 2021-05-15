@@ -16,6 +16,22 @@ then
     docker run --net=host --interactive --tty auvsisuas/interop-client
 fi
 
+# Run the client container.
+if [ "$1" == "rundev" ]
+then
+    set +e ;
+    docker rm devtest ;
+    docker run --net=host --interactive --tty --name devtest  --mount type=bind,source=/Users/rick/uci-uav/interop,target=/interop auvsisuas/interop-client /bin/bash ;
+    set -e
+fi
+
+
+if [ "$1" == "extenddev" ]
+then
+    docker exec -it devtest /bin/bash --init-file configure.sh
+
+fi
+
 # Pulls new images.
 if [ "$1" == "pull" ]
 then

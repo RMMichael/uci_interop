@@ -3,6 +3,7 @@ from __future__ import print_function
 from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelative,Command
 from pymavlink import mavutil # Needed for command message definitions
 import time
+from dronekit.helpers import *
 
 
 # shared data structure template
@@ -17,6 +18,8 @@ if __name__ == '__main__':
     util = Utilities()
     curr_stage = 1
     last_waypoint = 0
+    
+    
     
     # Pathplanning, get formatted file
     # Connect to server and relay telemetry & pass util
